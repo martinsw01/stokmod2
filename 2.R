@@ -22,4 +22,6 @@ var_exp <- var_matrix_theta - var_matrix_com %*% solve(var_matrix_theta_0) %*% t
 
 # plot
 plot(theta, expected, col = "red", type = "l", xlab = "theta", ylab = "Expected value", ylim = c(0, 1))
-lines(theta_0, x_0, col = "green", pch = 19)
+lines(theta, expected + qnorm(0.95)*sqrt(diag(var_exp)), col = "blue")
+lines(theta, expected - qnorm(0.95)*sqrt(diag(var_exp)), col = "blue")
+points(theta_0, x_0)

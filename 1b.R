@@ -9,12 +9,12 @@ simulate <- function(days, lambda, mu) {
 
   time <- 0
   max_time <- to_hours(days=days)
-  patients <- 0
-  state <- c(patients)
-  time_in_state <- c(0)
+  patients <- 0 # current number of patients
+  states <- c(patients) # array of states (number of patients)
+  time_in_state <- c(0) # time spent in a state at each time
   
   while (time < max_time) {
-    if (patients == 0) {
+    if (patients == 0) { # no patients that can leave the UCC
       arrival_time <- rexp(1, lambda)
       patients <- patients + 1
       time <- time + arrival_time
@@ -30,43 +30,71 @@ simulate <- function(days, lambda, mu) {
       }
     }
     time_in_state <- append(time_in_state, time)
-    state <- append(state, patients)
+    states <- append(states, patients)
   }
   
   return(data.frame(
     time_in_state = time_in_state,
-    state = state
+    states = states
   ))
 }
 
-plot_res <- function(time_in_state, state) {
-  plot(x = NA, y = NA, pch = NA, 
-       xlim = c(0, 50*24),#max_time), 
-       ylim = c(0, max(state)),
-       xlab = "Hours",
-       ylab = "Patients")
-  
-  #for (i in 1:(length(state)-1)) {
-  #  points(x=time_in_state[i + 0:1], y=state[c(i, i)], type="l")
-  #}
-  
-  plot(time_in_state, state, type="l")
+
+avg_number_of_patients <- function(time_in_state, states) {
+  len <- length(states)
+  sum(diff(time_in_state)*states[2:len])/time_in_state[len]
+}
+
+expected_time <- function(time_in_state, states, lambda) {
+  avg_number_of_patients(time_in_state, states)/lambda
 }
 
 
 sim <- simulate(50, lambda, mu)
 time_in_state <- sim$time_in_state
-state <- sim$state
+states <- sim$states
 
-plot_res(time_in_state, state)
+expected_time(time_in_state, states, lambda)
 
 
-
-(state * time_in_state)[1:10]
-time_in_states <- rep(0, max(state))
-
-for (i in 1:length(time_in_states)) {
-  time_in_states[i] <- sum((state == i) * time_in_state) / max_time
+mean_expected_time <- function(n, days, lambda, mu) {
+  w <- rep(0, n)
+  for (i in 1:n) {
+    sim <- simulate(days, lambda, mu)
+    w[i] <- expected_time(sim$time_in_state, sim$states, lambda)
+  }
+  
+  CI <- qt(0.975, df=n-1)*sd(w)/sqrt(n)
+  
+  data.frame(
+    w_avg = mean(w),
+    CI = CI
+  )
 }
 
-sum(state * time_in_state) / max_time
+mean_expected_time(n=30, days=50, lambda=lambda, mu=mu)
+
+# plot as discontinuous vertical lines
+discrete <- function(x, y, ...) {
+  len <- length(x)
+  for (i in 2:len) {
+    points(x[i+0:1], y[i-1]*c(1, 1), ...)
+  }
+}
+
+plot_simulation <- function(time_in_state, states) {
+  plot(x = NA, y = NA, pch = NA, 
+       xlim = c(0, tail(time_in_state, 1)[1]), # max time
+       ylim = c(0, max(states)),
+       xlab = "Hours",
+       ylab = "Patients")
+  
+  discrete(time_in_state, states, type="l", lwd=4)
+}
+
+
+
+sim <- simulate(0.5, lambda, mu)
+time_in_state <- sim$time_in_state
+states <- sim$states
+plot_simulation(time_in_state, states)
